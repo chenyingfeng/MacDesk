@@ -22,9 +22,18 @@ $checks = @(
 )
 function Invoke-Check([string]$Executable, [string]$Switch, [string]$Name) {
     $report = Join-Path $ReportRoot $Name
+    if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report }
     $process = Start-Process -FilePath $Executable -ArgumentList @($Switch, ('"' + $report + '"')) -WindowStyle Hidden -PassThru
     if (-not $process.WaitForExit(120000)) { $process.Kill(); throw ('Fixture timed out: ' + $Name) }
-    if ($process.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $report) -or -not ([IO.File]::ReadAllText($report)).StartsWith('PASS')) { throw ('Fixture failed: ' + $Name) }
+    $process.Refresh()
+    $reportText = if (Test-Path -LiteralPath $report) { [IO.File]::ReadAllText($report) } else { 'No fixture report was written.' }
+    if ($process.ExitCode -ne 0 -or -not $reportText.StartsWith('PASS')) {
+        # Reports contain owned-fixture diagnostics, not mailbox/user data. Keep
+        # the useful failure in the CI log even when no artifact is uploaded.
+        Write-Output ('Fixture ' + $Name + ' exited with code ' + $process.ExitCode)
+        Write-Output $reportText.Substring(0, [Math]::Min($reportText.Length, 16384))
+        throw ('Fixture failed: ' + $Name)
+    }
     Write-Output ('PASS ' + $Name)
 }
 foreach ($check in $checks) { Invoke-Check $dockExe $check[0] $check[1] }
