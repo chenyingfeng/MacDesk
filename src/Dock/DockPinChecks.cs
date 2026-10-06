@@ -6,8 +6,16 @@ using System.Reflection;
 
 internal static class DockPinChecks {
     internal static void Run(string report) {
-        string phase="fixture directory";
+        string phase="UTF-8 source encoding";
         try {
+        // Escapes contain only ASCII in the source. This detects a wrong source
+        // code page before damaged literals become invalid filenames such as
+        // question marks on a clean English Windows runner.
+        if(!String.Equals("测试应用","\u6D4B\u8BD5\u5E94\u7528",StringComparison.Ordinal)
+            ||!String.Equals("快捷方式.lnk","\u5FEB\u6377\u65B9\u5F0F.lnk",StringComparison.Ordinal)
+            ||!String.Equals("网页.url","\u7F51\u9875.url",StringComparison.Ordinal))
+            throw new InvalidOperationException("Chinese source literals differ from Unicode escapes; compile legacy sources with /codepage:65001.");
+        phase="fixture directory";
         string root=Path.Combine(Path.GetDirectoryName(report),"pin-fixture-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
         phase="add and duplicate";
         string exe=Path.Combine(root,"fixture app.exe");File.WriteAllText(exe,"Not an executable; never launched.");
@@ -38,7 +46,7 @@ internal static class DockPinChecks {
         }finally{if(link!=null&&Marshal.IsComObject(link))Marshal.ReleaseComObject(link);if(shell!=null&&Marshal.IsComObject(shell))Marshal.ReleaseComObject(shell);}
         phase="corrupt config preservation";
         File.WriteAllText(Path.Combine(root,"dock-pins.json"),"broken");if(String.IsNullOrEmpty(new DockPinStore(root).LoadError))throw new InvalidOperationException("Corrupt pin config overwritten");
-        File.WriteAllText(report,"PASS: fixture-only add, deduplication, Chinese persistence, order/reload, remove without deleting original file; exact executable identity matching; shell shortcut identity; URL shortcut import; unsupported scheme/file rejection; corrupt-config preservation. No app launched, no user pin changed.");
+        File.WriteAllText(report,"PASS: UTF-8 Chinese literals match Unicode escapes; fixture-only add, deduplication, Chinese persistence, order/reload, remove without deleting original file; exact executable identity matching; Chinese shell shortcut identity; Chinese URL shortcut import; unsupported scheme/file rejection; corrupt-config preservation. No app launched, no user pin changed.");
         }catch(Exception error){throw new InvalidOperationException("Pin fixture phase: "+phase+"; runtime="+Environment.Version+"; OS="+Environment.OSVersion.Version+"; process="+(IntPtr.Size==8?"x64":"x86"),error);}
     }
 }

@@ -44,7 +44,9 @@ try {
     }
     $dockSource = Join-Path $repoRoot 'src/Dock'
     $dockExe = Join-Path $dockRoot 'PersonalDock-v4.exe'
-    $compilerArgs = @('/nologo', '/utf8output', '/target:winexe', '/optimize+', '/platform:x64', ('/out:' + $dockExe), ('/win32manifest:' + (Join-Path $dockSource 'highdpi.manifest')))
+    # /utf8output controls diagnostics only; explicitly decode source as UTF-8
+    # so Chinese literals survive the legacy compiler on an English CI image.
+    $compilerArgs = @('/nologo', '/utf8output', '/codepage:65001', '/target:winexe', '/optimize+', '/platform:x64', ('/out:' + $dockExe), ('/win32manifest:' + (Join-Path $dockSource 'highdpi.manifest')))
     foreach ($assembly in @('PresentationFramework', 'PresentationCore', 'WindowsBase', 'UIAutomationTypes', 'UIAutomationClient')) {
         $compilerArgs += '/reference:' + (Join-Path $frameworkRoot ('WPF/' + $assembly + '.dll'))
     }
@@ -59,7 +61,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Dock compilation failed.' }
     Copy-Item -LiteralPath (Join-Path $dockSource 'native-dock.config') -Destination ($dockExe + '.config')
     $launcherExe = Join-Path $packageRoot 'MacDesk.exe'
-    & $csc '/nologo' '/utf8output' '/target:winexe' '/optimize+' '/platform:x64' '/reference:System.dll' '/reference:System.Drawing.dll' '/reference:System.Windows.Forms.dll' ('/out:' + $launcherExe) ('/win32manifest:' + (Join-Path $repoRoot 'src/Launcher/app.manifest')) (Join-Path $repoRoot 'src/Launcher/Program.cs')
+    & $csc '/nologo' '/utf8output' '/codepage:65001' '/target:winexe' '/optimize+' '/platform:x64' '/reference:System.dll' '/reference:System.Drawing.dll' '/reference:System.Windows.Forms.dll' ('/out:' + $launcherExe) ('/win32manifest:' + (Join-Path $repoRoot 'src/Launcher/app.manifest')) (Join-Path $repoRoot 'src/Launcher/Program.cs')
     if ($LASTEXITCODE -ne 0) { throw 'Launcher compilation failed.' }
     Copy-Item -LiteralPath (Join-Path $repoRoot 'src/Launcher/launcher.config') -Destination ($launcherExe + '.config')
     foreach ($file in @('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md')) {
