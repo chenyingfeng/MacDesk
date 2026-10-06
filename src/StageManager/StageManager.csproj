@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk" InitialTargets="SetVersionFromGitTag">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<Version>0.8.3.24</Version>
+		<!-- Compiled against 20348 purely for GraphicsCaptureSession.IsBorderRequired
+		     (UniversalApiContract v12), which the 19041 WinRT projection does not carry.
+		     SupportedOSPlatformVersion keeps the RUNTIME floor at 19041, so CA1416 still
+		     flags any newer API that is not version-guarded. -->
+		<TargetFramework>net10.0-windows10.0.20348.0</TargetFramework>
+		<SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+		<Nullable>enable</Nullable>
+		<UseWPF>true</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ApplicationIcon>StageManager.ico</ApplicationIcon>
+	</PropertyGroup>
+
+	<Target Name="SetVersionFromGitTag" Condition="'$(Version)' == '' Or '$(Version)' == '1.0.0'">
+		<Exec Command="git describe --tags --abbrev=0" ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" EchoOff="true" WorkingDirectory="$(MSBuildProjectDirectory)">
+			<Output TaskParameter="ConsoleOutput" PropertyName="_GitTag" />
+			<Output TaskParameter="ExitCode" PropertyName="_GitExit" />
+		</Exec>
+		<PropertyGroup>
+			<Version Condition="'$(_GitExit)' == '0' And '$(_GitTag)' != ''">$(_GitTag.TrimStart('v'))</Version>
+			<VersionPrefix Condition="'$(_GitExit)' == '0' And '$(_GitTag)' != ''">$(_GitTag.TrimStart('v'))</VersionPrefix>
+		</PropertyGroup>
+	</Target>
+
+	<ItemGroup>
+		<Resource Include="StageManager.ico" />
+	</ItemGroup>
+
+	<!-- Disable WPF stylus/touch stack: PenThreadWorker throws IndexOutOfRangeException
+	     on its own thread (unhandleable AppDomain crash). App uses no pen input. -->
+	<ItemGroup>
+		<RuntimeHostConfigurationOption Include="Switch.System.Windows.Input.Stylus.DisableStylusAndTouchSupport" Value="true" Trim="true" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="AsyncAwaitBestPractices" Version="9.0.0" />
+		<PackageReference Include="ControlzEx" Version="7.0.1" />
+		<PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
+		<PackageReference Include="Vortice.Direct3D11" Version="3.8.1" />
+		<PackageReference Include="Vortice.DXGI" Version="3.8.1" />
+		<PackageReference Include="SharpHook" Version="6.1.2" />
+		<PackageReference Include="WpfScreenHelper" Version="2.1.1" />
+	</ItemGroup>
+
+    <ItemGroup>
+        <Compile Remove="Composition/CaptureSession.cs;Composition/CaptureBorder.cs;Composition/CompositionHost.cs;Composition/CompositorFactory.cs;Composition/D3DDeviceHolder.cs;Composition/Interop/**/*.cs;Animations/LiveCardHost.cs;Animations/DebugZoneOverlay.cs" />
+    </ItemGroup>
+</Project>

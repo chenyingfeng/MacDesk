@@ -1,0 +1,10 @@
+* text=auto
+*.cs text eol=crlf
+*.xaml text eol=crlf
+*.ps1 text eol=crlf
+*.md text eol=lf
+*.yml text eol=lf
+*.ico binary
+*.png binary
+third_party/libuiohook/** -text
+licenses/** -text

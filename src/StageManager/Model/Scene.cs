@@ -1,0 +1,76 @@
+using StageManager.Native.Window;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+
+namespace StageManager.Model
+{
+    [System.Diagnostics.DebuggerDisplay("{Title}")]
+	public class Scene
+	{
+		public event EventHandler? SelectedChanged;
+
+		public Guid Id { get; } = Guid.NewGuid();
+
+		public string Title { get; private set; } = string.Empty;
+        public string? CustomName {get;private set;}
+        internal string WorkspaceKey {get;set;}="";
+        public void Rename(string name) {
+            if(string.IsNullOrWhiteSpace(name)||name.Trim().Length>60)throw new ArgumentException("分组名需要 1–60 个字符。");
+            CustomName=name.Trim();UpdateTitle();
+        }
+
+		public IEnumerable<IWindow> Windows => _windows;
+
+		private List<IWindow> _windows = new List<IWindow>();
+		private bool _selected;
+
+		public Scene(string key, params IWindow[] windows)
+		{
+			_windows.AddRange(windows);
+			UpdateTitle();
+			Key = key;
+		}
+
+		public void Remove(IWindow window)
+		{
+			_windows.RemoveAll(w=>w.Handle==window.Handle);
+			UpdateTitle();
+		}
+
+		public void Add(IWindow window)
+		{
+			if(!_windows.Any(w=>w.Handle==window.Handle))_windows.Add(window);
+			UpdateTitle();
+		}
+
+		private void UpdateTitle()
+		{
+			Title = CustomName ?? string.Join(Environment.NewLine, Windows.Select(w => Max(20, w.Title)));
+		}
+
+		private string Max(int max, string title)
+		{
+			if (title.Length > max)
+				return title.Substring(0, max - 3) + "...";
+
+			return title;
+		}
+
+		public bool IsSelected
+		{
+			get => _selected;
+			set 
+			{
+				if (_selected != value)
+				{
+					_selected = value;
+					SelectedChanged?.Invoke(this, EventArgs.Empty);
+				}
+			}
+		}
+
+		public string Key { get; }
+	}
+}
