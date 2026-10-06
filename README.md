@@ -1,7 +1,7 @@
 # MacDesk
 
-A portable Windows desktop companion with a bottom Dock, a live window sidebar,
-and an edge-triggered shortcut center. 中文说明见下方。
+A macOS-inspired desktop experience for Windows, with a native bottom Dock,
+a live window sidebar, and an edge-triggered shortcut center. 中文说明见下方。
 
 MacDesk combines a modified [StageManagerForWindows](https://github.com/depoledna/StageManagerForWindows)
 with a separate WPF Dock. It is an independent community project, inspired by

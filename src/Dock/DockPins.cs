@@ -2,8 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Web.Script.Serialization;
 
 internal sealed class DockPin {
@@ -67,12 +65,10 @@ internal sealed class DockPinStore {
     }
     // Read only the shortcut's target; do not resolve, rewrite or launch it here.
     internal static string ShortcutTarget(string path) {
-        object shell=null,link=null;try {
-            var type=Type.GetTypeFromProgID("WScript.Shell");if(type==null)return "";shell=Activator.CreateInstance(type);
-            link=type.InvokeMember("CreateShortcut",BindingFlags.InvokeMethod,null,shell,new object[]{path});
-            string value=Convert.ToString(link.GetType().InvokeMember("TargetPath",BindingFlags.GetProperty,null,link,null));
+        try {
+            string value=DockShellLink.ReadTarget(path);
             return !String.IsNullOrWhiteSpace(value)&&Path.IsPathRooted(value)&&Path.GetExtension(value).Equals(".exe",StringComparison.OrdinalIgnoreCase)?Path.GetFullPath(value):"";
-        }catch{return "";}finally {if(link!=null&&Marshal.IsComObject(link))Marshal.ReleaseComObject(link);if(shell!=null&&Marshal.IsComObject(shell))Marshal.ReleaseComObject(shell);}
+        }catch{return "";}
     }
     internal static string Key(string exe) {return (exe??"").IndexOf("OpenAI.Codex_",StringComparison.OrdinalIgnoreCase)>=0?"codex":Path.GetFileNameWithoutExtension(exe??"").ToLowerInvariant();}
     internal static bool Matches(DockPin pin,MacDockApp app) {

@@ -51,7 +51,7 @@ try {
         $compilerArgs += '/reference:' + (Join-Path $frameworkRoot ('WPF/' + $assembly + '.dll'))
     }
     $compilerArgs += @('/reference:System.dll', '/reference:System.Core.dll', '/reference:System.Xaml.dll', '/reference:System.Drawing.dll', '/reference:System.Windows.Forms.dll', '/reference:System.Web.Extensions.dll', ('/reference:' + (Join-Path $frameworkRoot 'Accessibility.dll')))
-    foreach ($file in @('PersonalDock.cs', 'DockAppLauncher.cs', 'DockLinkLauncher.cs', 'DockDocumentLauncher.cs', 'MacBottomDock.cs', 'NativeDockIcons.cs', 'DockHoverChecks.cs', 'DockPins.cs', 'DockPinPicker.cs', 'MacBottomDock.Pins.cs', 'DockPinChecks.cs', 'DockTrayRecovery.cs', 'DockRuntime.cs', 'DockWatchdog.cs')) {
+    foreach ($file in @('PersonalDock.cs', 'DockAppLauncher.cs', 'DockLinkLauncher.cs', 'DockDocumentLauncher.cs', 'MacBottomDock.cs', 'NativeDockIcons.cs', 'DockHoverChecks.cs', 'DockPins.cs', 'DockShellLink.cs', 'DockPinPicker.cs', 'MacBottomDock.Pins.cs', 'DockPinChecks.cs', 'DockTrayRecovery.cs', 'DockRuntime.cs', 'DockWatchdog.cs')) {
         $compilerArgs += Join-Path $dockSource $file
     }
     foreach ($file in @('BrowserActivationIntent.cs', 'DocumentTarget.cs', 'TaskbarToggleQueue.cs')) {
