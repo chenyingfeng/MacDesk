@@ -25,9 +25,9 @@ internal sealed class WindowMotion : IDisposable
         var viewport=new Rect(bounds.X,bounds.Y,bounds.Width,bounds.Height);
         bool Add(IWindow w,bool arriving,int ordinal) {
             if(w.IsMinimized||!WorkspaceEnvironment.IsCurrent(w.Handle)||NativeClientWindowPolicy.UsesNativeMinimize(w))return false;
-            var full=WorkspaceWindowGeometry.Bounds(w);bool parked=OpacityWindowStrategy.TryGetOriginalPosition(w.Handle,out int x,out int y);
+            var full=WorkspaceWindowGeometry.Bounds(w);bool parked=OpacityWindowStrategy.TryGetOriginalBounds(w.Handle,out var original);
             if(arriving!=parked)return false;
-            if(parked)full=new Rect(x,y,full.Width,full.Height);
+            if(parked)full=original;
             if(Rect.Intersect(full,viewport).IsEmpty)return false;
             double scale=MainWindow.GetMonitorScale(WorkspaceEnvironment.ScreenFor(monitor));
             var fit=Model.SceneModel.MacCardSize(full.Width/scale,full.Height/scale);

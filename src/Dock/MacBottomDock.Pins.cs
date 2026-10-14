@@ -142,9 +142,10 @@ internal sealed partial class MacBottomDock {
     void RecordPinRecovery(PendingPinLaunch operation,string phase,string route) {
         if(Interlocked.Read(ref activationGeneration)!=Interlocked.Read(ref operation.Generation))return;
         try{DockRuntime.AtomicText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"dock-pin-activation.status"),
-            "Version=4.7.7.0\nPhase="+phase+"\nState="+(operation.Age.ElapsedMilliseconds>=5000?"expired":"current")+"\nRoute="+route+"\nElapsedMs="+operation.Age.ElapsedMilliseconds+"\nUtc="+DateTime.UtcNow.ToString("o"));}catch{}
+            "Version=4.8.1.0\nPhase="+phase+"\nState="+(operation.Age.ElapsedMilliseconds>=5000?"expired":"current")+"\nRoute="+route+"\nElapsedMs="+operation.Age.ElapsedMilliseconds+"\nUtc="+DateTime.UtcNow.ToString("o"));}catch{}
     }
     internal void ShowPinPicker() {
+        CloseWindowChooser();
         if(!String.IsNullOrEmpty(pins.LoadError)){MessageBox.Show(pins.LoadError,"固定入口");return;}
         menuOpen=true;ResetHover();
         try {new DockPinPicker(pins,apps){Owner=this}.ShowDialog();}
@@ -159,7 +160,7 @@ internal sealed partial class MacBottomDock {
         },iconPath);
         if(targets.Length>0)visuals[visuals.Count-1].Key=targets[0].Key;
         var menu=new ContextMenu();menu.Opened+=delegate {
-            menuOpen=true;Magnify(Double.NaN);menu.Items.Clear();menu.Items.Add(new MenuItem {Header=pin.Name,IsEnabled=false});
+            CloseWindowChooser();menuOpen=true;Magnify(Double.NaN);menu.Items.Clear();menu.Items.Add(new MenuItem {Header=pin.Name,IsEnabled=false});
             foreach(var target in apps.Where(a=>DockPinStore.Matches(pin,a))) {
                 var chosen=target;string title=NativeDockIcons.WindowTitle(target.Handle,target.Pid);
                 var window=new MenuItem {Header=String.IsNullOrWhiteSpace(title)?"显示窗口":title.Replace("_","__"),IsCheckable=true,IsChecked=target.Active};
@@ -238,6 +239,7 @@ internal sealed partial class MacBottomDock {
         return false;
     }
     void LaunchPin(DockPin pin) {
+        CloseWindowChooser();
         PendingPinLaunch existing;
         if(pin.Kind!="web"&&pendingPinLaunches.TryGetValue(pin.Id,out existing)) {
             // A repeated click on this same pending entry keeps one operation alive.
@@ -273,10 +275,13 @@ internal sealed partial class MacBottomDock {
                     if(trayOnly){
                         if(!RecoveryCurrent(operation))return;
                         RecordPinRecovery(operation,"native-recovery","pending");
-                        var restored=DockTrayRecovery.Restore(pin,stageRoot,delegate {return RecoveryCurrent(operation);});
+                        var restored=DockRecoveryWorker.Restore(pin,stageRoot,delegate {return RecoveryCurrent(operation);});
                         CompleteRecoveryPresentation(operation,restored);
                         lastRoute=restored.Route;RecordPinRecovery(operation,"native-returned",lastRoute);
-                        if(!RecoveryCurrent(operation))return;
+                        if(!RecoveryCurrent(operation)){
+                            if(TrayRecoveryCurrent(operation,0,true))ShowTrayForRecovery("恢复请求已超时，可从系统托盘打开。下次点击可重新尝试。",operation,true);
+                            return;
+                        }
                         try{DockRuntime.AtomicText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"dock-recovery.status"),"State="+(restored.Shown?"shown":restored.WakeRequested?"wake-requested":"tray-fallback")+"\nRoute="+restored.Route+"\nForeground="+restored.Foreground+"\nUtc="+DateTime.UtcNow.ToString("o"));}catch{}
                         if(restored.Shown){
                             if(!restored.Foreground&&!WaitForRecoveredWindow(restored,operation))ShowTrayForRecovery("软件窗口已显示，正在等待台前调度识别。也可从系统托盘切到前台。",operation);

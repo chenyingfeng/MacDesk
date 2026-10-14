@@ -16,7 +16,7 @@ namespace StageManager.Strategies
 	internal class OpacityWindowStrategy : IWindowStrategy
 	{
 		// Saved on-screen position so Show() can restore the parked window.
-		private static readonly Dictionary<IntPtr, (int X, int Y)> _originalPositions = new();
+		private static readonly Dictionary<IntPtr, (int X, int Y, int Width, int Height, int Pid)> _originalPositions = new();
 
 		// Atomic state management
 		private static readonly System.Collections.Concurrent.ConcurrentDictionary<IntPtr, System.Threading.SemaphoreSlim> _windowLocks = new();
@@ -38,6 +38,8 @@ namespace StageManager.Strategies
 			{
 				if (_originalPositions.TryGetValue(hWnd, out var pos))
 				{
+					Win32.GetWindowThreadProcessId(hWnd,out var pid);
+                    if(pid==0||pid!=pos.Pid){_originalPositions.Remove(hWnd);x=0;y=0;return false;}
 					x = pos.X; y = pos.Y;
 					return true;
 				}
@@ -48,7 +50,24 @@ namespace StageManager.Strategies
 
         internal static void SetRestorePosition(IntPtr handle,int x,int y)
         {
-            lock(_globalLock) _originalPositions[handle]=(x,y);
+            lock(_globalLock) {
+                Win32.GetWindowThreadProcessId(handle,out var pid);if(pid==0)return;
+                if(_originalPositions.TryGetValue(handle,out var saved)&&saved.Pid==pid)
+                    _originalPositions[handle]=(x,y,saved.Width,saved.Height,saved.Pid);
+                else {
+                    var rect=new Win32.Rect();if(!Win32.GetWindowRect(handle,ref rect)||rect.Width<=0||rect.Height<=0)return;
+                    _originalPositions[handle]=(x,y,rect.Width,rect.Height,(int)pid);
+                }
+            }
+        }
+
+        internal static bool TryGetOriginalBounds(IntPtr handle,out Rect bounds) {
+            lock(_globalLock) {
+                if(TryGetOriginalPosition(handle,out _,out _)&&_originalPositions.TryGetValue(handle,out var saved)) {
+                    bounds=new Rect(saved.X,saved.Y,saved.Width,saved.Height);return true;
+                }
+            }
+            bounds=Rect.Empty;return false;
         }
 
 		/// <summary>
@@ -107,7 +126,7 @@ namespace StageManager.Strategies
 		public void Show(IWindow window)
 		{
 			var hWnd = window.Handle;
-            if(!Services.WindowIntegrity.CanControl(window.ProcessId))return;
+            if(!Services.WindowRestore.SameWindow(window)||!Services.WindowIntegrity.CanControl(window.ProcessId))return;
             if(IsStageMinimized(hWnd)) {
                 // Normal exit restores only minimizations owned by Stage Manager.
                 // A messenger closed to its tray stays hidden; do not wake it here.
@@ -148,11 +167,14 @@ namespace StageManager.Strategies
 					return;
 				}
 
-				(int X,int Y) position=default; bool restore;
-                lock(_globalLock) restore=_originalPositions.TryGetValue(hWnd,out position);
+				(int X,int Y,int Width,int Height,int Pid) position=default; bool restore;
+                lock(_globalLock) restore=_originalPositions.TryGetValue(hWnd,out position)&&position.Pid==window.ProcessId;
                 if(restore) {
-                    if(!Win32.SetWindowPos(hWnd,IntPtr.Zero,position.X,position.Y,0,0,
-                        Win32.SetWindowPosFlags.IgnoreResize | Win32.SetWindowPosFlags.DoNotActivate |
+                    // A maximized window keeps Windows' own sizing. Normal windows
+                    // recover the complete physical rectangle saved before parking.
+                    var resize=Win32.IsZoomed(hWnd)?Win32.SetWindowPosFlags.IgnoreResize:0;
+                    if(!Win32.SetWindowPos(hWnd,IntPtr.Zero,position.X,position.Y,position.Width,position.Height,
+                        resize | Win32.SetWindowPosFlags.DoNotActivate |
                         Win32.SetWindowPosFlags.AsynchronousWindowPosition))
                         throw new System.ComponentModel.Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error(),"应用拒绝恢复窗口位置。");
                     lock(_globalLock) _originalPositions.Remove(hWnd);
@@ -185,7 +207,7 @@ namespace StageManager.Strategies
 		public void Hide(IWindow window)
 		{
 			var hWnd = window.Handle;
-            if(!Services.WindowIntegrity.CanControl(window.ProcessId))return;
+            if(!Services.WindowRestore.SameWindow(window)||!Services.WindowIntegrity.CanControl(window.ProcessId))return;
 
             if(Services.NativeClientWindowPolicy.UsesNativeMinimize(window)) {
                 if(!Services.WindowRestore.SameWindow(window) || !Win32.IsWindowVisible(hWnd) || window.IsMinimized)return;
@@ -218,11 +240,12 @@ namespace StageManager.Strategies
 				Log.Window("OPACITY", $"Move off-screen to ({point.X},{point.Y})", window);
 				lock (_globalLock)
 				{
-					if (!_originalPositions.ContainsKey(hWnd))
+					if (!_originalPositions.TryGetValue(hWnd,out var existing)||existing.Pid!=window.ProcessId)
 					{
 						Win32.Rect rect = new Win32.Rect();
-						Win32.GetWindowRect(hWnd, ref rect);
-						_originalPositions[hWnd] = (rect.Left, rect.Top);
+						if(!Win32.GetWindowRect(hWnd, ref rect)||rect.Width<=0||rect.Height<=0)
+                            throw new InvalidOperationException("未能读取窗口位置，已取消收起。");
+						_originalPositions[hWnd] = (rect.Left, rect.Top,rect.Width,rect.Height,window.ProcessId);
 					}
 				}
 

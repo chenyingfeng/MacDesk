@@ -2,7 +2,7 @@
 
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
-		<Version>0.8.3.24</Version>
+		<Version>0.8.3.26</Version>
 		<!-- Compiled against 20348 purely for GraphicsCaptureSession.IsBorderRequired
 		     (UniversalApiContract v12), which the 19041 WinRT projection does not carry.
 		     SupportedOSPlatformVersion keeps the RUNTIME floor at 19041, so CA1416 still

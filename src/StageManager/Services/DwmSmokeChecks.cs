@@ -65,6 +65,17 @@ internal static class DwmSmokeChecks
             if(!preview.Update(new Rect(-19900,-19900,200,150),new Rect(-19900,-19900,200,150)))
                 throw new InvalidOperationException("Interactive preview unavailable");
             var h=preview.HostHandle;
+            // A reveal changes alpha, never the HWND geometry or input contract.
+            foreach(byte alpha in new byte[]{0,32,128,255,128,0,255}) {
+                if(!preview.Update(new Rect(-19900,-19900,200,150),new Rect(-19900,-19900,200,150),alpha)
+                    ||preview.HostHandle!=h||Win32.SendMessage(h,0x84,IntPtr.Zero,IntPtr.Zero).ToInt32()!=1)
+                    throw new InvalidOperationException("Reveal replaced the preview host or disabled input");
+                var current=new Win32.Rect();
+                if(!Win32.GetWindowRect(h,ref current)||current.Left!=-19900||current.Top!=-19900||current.Width!=200||current.Height!=150)
+                    throw new InvalidOperationException("Reveal moved the pointer surface");
+                Win32.SendMessage(h,0x201,IntPtr.Zero,IntPtr.Zero);
+                Win32.SendMessage(h,0x202,IntPtr.Zero,IntPtr.Zero);
+            }
             if(Win32.GetWindowStyleLongPtr(h).HasFlag((Win32.WS)0x08000000)
                 || !Win32.GetWindowExStyleLongPtr(h).HasFlag(Win32.WS_EX.WS_EX_NOACTIVATE)
                 || Win32.SendMessage(h,0x84,IntPtr.Zero,IntPtr.Zero).ToInt32()!=1
@@ -78,7 +89,7 @@ internal static class DwmSmokeChecks
             var wheelPoint=new IntPtr(unchecked((int)0xFFFBFFF6));
             var wheelDelta=new IntPtr(120<<16);
             Win32.SendMessage(h,0x20A,wheelDelta,wheelPoint);
-            if(down!=1 || moves!=1 || up!=1 || !left || wheel!=1 || delta!=120 || ownerMessages!=0)
+            if(down!=8 || moves!=1 || up!=8 || !left || wheel!=1 || delta!=120 || ownerMessages!=0)
                 throw new InvalidOperationException("Pointer callbacks duplicated/dropped or injected owner messages");
         }
         if(DwmPreviewSurface.ActiveRelations!=0)throw new InvalidOperationException("Interactive preview relation leaked");

@@ -86,7 +86,7 @@ public partial class CompositionThumbnail : UserControl
             var top = PointToScreen(new Point(0, 0));
             var bottom = PointToScreen(new Point(ActualWidth, ActualHeight));
             preview.Update(new Rect(top, bottom), owner.SidebarViewportPixels,
-                (byte)(Math.Clamp(MirrorOpacity, 0, 1) * 255));
+                (byte)(Math.Clamp(MirrorOpacity * owner.Opacity, 0, 1) * 255));
         }
         catch (Exception ex)
         {

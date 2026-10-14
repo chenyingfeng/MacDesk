@@ -25,7 +25,12 @@ internal static class WindowRestore
         // pass through its normal system-command handler rather than a visibility flip.
         if(NativeClientWindowPolicy.UsesNativeMinimize(window)) {
             if(window.IsMinimized) RequestNativeRestore(window);
-        } else Win32.ShowWindowAsync(window.Handle,Win32.SW.SW_RESTORE);
+        } else if(window.IsMinimized) {
+            // An already visible normal/maximized window needs no show-state change.
+            // Preserve Windows' restore-to-maximized intent across native minimize.
+            Win32.ShowWindowAsync(window.Handle,WindowRestoreGeometry.RestoreMaximized(window.Handle)
+                ?Win32.SW.SW_SHOWMAXIMIZED:Win32.SW.SW_RESTORE);
+        }
         for(int i=0;i<80;i++) {
             if(!SameWindow(window))throw new InvalidOperationException("恢复期间窗口已关闭，请重新打开应用。");
             if(Win32.IsWindowVisible(window.Handle) && !Win32.IsIconic(window.Handle))return;

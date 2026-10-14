@@ -1102,11 +1102,15 @@ namespace StageManager
             _iconOverlay.Enabled=visible;
             // Keep icons and capture HWNDs at the same final geometry during transitions.
             // A short WPF fade avoids independent slide clocks fighting on rapid hover.
+            // Establish opacity before showing native thumbnail hosts, so the
+            // first DWM frame cannot flash at full strength ahead of the WPF card.
+            BeginAnimation(OpacityProperty,null);Opacity=visible&&SystemParameters.ClientAreaAnimation?0:1;
             Left=target;PlaceSidebarNative();
             foreach(var tile in EnumerateVisualDescendants<CompositionThumbnail>(scenesControl))tile.RefreshDwm();
             if(visible) {
                 UpdateLayout(); RefreshIconOverlay(); _iconOverlay.BringToFront();
-                BeginAnimation(OpacityProperty,new DoubleAnimation(0,1,TimeSpan.FromMilliseconds(140)));
+                if(SystemParameters.ClientAreaAnimation)
+                    BeginAnimation(OpacityProperty,new DoubleAnimation(0,1,TimeSpan.FromMilliseconds(180)) {EasingFunction=new CubicEase {EasingMode=EasingMode.EaseOut}});
             } else {
                 BeginAnimation(OpacityProperty,null); Opacity=1;
                 _iconOverlay.Hide();

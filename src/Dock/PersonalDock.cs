@@ -18,7 +18,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Interop;
 using Forms=System.Windows.Forms;
 
-[assembly: System.Reflection.AssemblyFileVersion("4.7.7.0")]
+[assembly: System.Reflection.AssemblyFileVersion("4.8.1.0")]
 
 enum DockEdge { Left, Right, Top, Bottom }
 class EdgeGeometry {
@@ -178,7 +178,7 @@ class DockWindow : Window {
         try {
             var request=System.IO.Path.Combine(ownRoot,"recover.marker");
             if(File.Exists(request)){var token=File.ReadAllText(request);if(token!=lastRecovery){lastRecovery=token;RecoverWidgets();}}
-            DockRuntime.AtomicText(System.IO.Path.Combine(ownRoot,"dock-heartbeat.ini"),"Version=4.7.7.0\nPid="+Process.GetCurrentProcess().Id+"\nRunToken="+RunToken+"\nState=ready\nExpanded="+expanded+"\nMenuOpen="+menuOpen+"\nExitReason="+exitReason+"\nUiUtc="+DateTime.UtcNow.ToString("o")+"\n");
+            DockRuntime.AtomicText(System.IO.Path.Combine(ownRoot,"dock-heartbeat.ini"),"Version="+((System.Reflection.AssemblyFileVersionAttribute)Attribute.GetCustomAttribute(System.Reflection.Assembly.GetExecutingAssembly(),typeof(System.Reflection.AssemblyFileVersionAttribute))).Version+"\nPid="+Process.GetCurrentProcess().Id+"\nRunToken="+RunToken+"\nState=ready\nExpanded="+expanded+"\nMenuOpen="+menuOpen+"\nExitReason="+exitReason+"\nUiUtc="+DateTime.UtcNow.ToString("o")+"\n");
         }catch(Exception error){DockRuntime.Record(ownRoot,"heartbeat",error);}
     }
     void SetTheme(bool value){light=value;File.WriteAllText(themePath,light?"Light":"Dark");if(expanded)BuildPanel();}
@@ -395,6 +395,10 @@ class PersonalDock {
         File.WriteAllText(output,"PASS: Mac Dock fresh app list, duplicate identity, stale snapshot refusal and bounded high-DPI placement; document launch request token validation, expiration, deduplication and executable refusal; GUI application identity validation; web click debounce preserves different links; all four hidden trigger zones, whole-edge and restricted segment activation, snap selection, negative monitor coordinates, DPI-scaled hit area, panel clamping including taskbar. No UI input or account access.");
     }
     [STAThread] static void Main(string[] args) {
+        if(DockRecoveryWorker.TryRun(args))return;
+        if(args.Length==2&&args[0]=="/preview-window-chooser") {DockWindowChooser.Check(args[1],true);return;}
+        if(args.Length==2&&args[0]=="/check-window-chooser") {try{DockWindowChooser.Check(args[1]);}catch(Exception e){File.WriteAllText(args[1],"FAIL: "+e);Environment.ExitCode=1;}return;}
+        if(args.Length==2&&args[0]=="/check-dock-worker") {try{DockRecoveryWorker.Check(args[1]);}catch(Exception e){File.WriteAllText(args[1],"FAIL: "+e);Environment.ExitCode=1;}return;}
         if(DockWatchdog.TryRun(args))return;
         if(args.Length==2&&args[0]=="/check-dock-runtime") {try{DockRuntime.Check(args[1]);}catch(Exception e){File.WriteAllText(args[1],"FAIL: "+e);Environment.ExitCode=1;}return;}
         if(args.Length==2&&args[0]=="/check-dock-watchdog") {try{if(!DockWatchdog.Check(args[1]))Environment.ExitCode=1;}catch(Exception e){File.WriteAllText(args[1],"FAIL: "+e);Environment.ExitCode=1;}return;}

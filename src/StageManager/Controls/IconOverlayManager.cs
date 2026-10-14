@@ -412,7 +412,13 @@ namespace StageManager.Controls
 
         private void EnsureOverlay(Rect bounds)
         {
-            _overlay ??= new IconOverlayWindow();
+            if (_overlay == null) {
+                _overlay = new IconOverlayWindow();
+                // Share the sidebar's one reveal clock with the separate icon HWND.
+                // Keep pointer geometry fixed throughout the fade.
+                System.Windows.Data.BindingOperations.SetBinding(_overlay.Canvas, UIElement.OpacityProperty,
+                    new System.Windows.Data.Binding("Opacity") { Source = Application.Current.MainWindow });
+            }
             _overlay.PositionFrom(bounds);
         }
 

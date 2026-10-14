@@ -61,6 +61,8 @@ namespace StageManager.Services
             TaskbarLeaseChecks.Run();
             await QqRestoreChecks.RunAsync();
             await WeChatRestoreChecks.RunAsync();
+            ParkingChecks.Run();
+            await WindowPlacementChecks.RunAsync();
             InputHandoffChecks.Run();
             SidebarInputChecks.Run();
             var navigation = new SystemSelectionPolicy();

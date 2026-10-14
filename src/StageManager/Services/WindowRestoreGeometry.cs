@@ -5,6 +5,10 @@ using StageManager.Native.PInvoke;
 namespace StageManager.Services;
 internal static class WindowRestoreGeometry
 {
+    internal static bool RestoreMaximized(IntPtr handle) {
+        var p=new Placement {Length=(uint)Marshal.SizeOf<Placement>()};
+        return GetWindowPlacement(handle,ref p)&&(p.Flags&2)!=0;
+    }
     // Read only the restored SIZE. WINDOWPLACEMENT positions use workspace coordinates,
     // whereas actual dropped positions use SetWindowPos physical screen coordinates.
     internal static Size NormalSize(IntPtr handle,Size fallback)

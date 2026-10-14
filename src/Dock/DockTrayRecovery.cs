@@ -16,10 +16,10 @@ using Forms=System.Windows.Forms;
 // No hidden messenger HWND is shown, enabled, styled, moved or relaunched here.
 internal static class DockTrayRecovery {
     internal sealed class Result {
-        internal bool Shown,Foreground,WakeRequested,ActionUncertain;
-        internal long Handle,ElapsedMilliseconds;
-        internal int Pid,CandidateCount;
-        internal string Route="none",Phase="none",LastPhase="none",ErrorType="None",ErrorHResult="0x00000000",ErrorOperation="none",RejectReason="none";
+        public bool Shown,Foreground,WakeRequested,ActionUncertain;
+        public long Handle,ElapsedMilliseconds;
+        public int Pid,CandidateCount;
+        public string Route="none",Phase="none",LastPhase="none",ErrorType="None",ErrorHResult="0x00000000",ErrorOperation="none",RejectReason="none";
     }
     internal static bool Supported(string identity){string key=DockPinStore.Key(identity);return key=="wechat"||key=="weixin"||key=="qq";}
     internal static bool MainShape(string cls,string caption,double width,double height) {

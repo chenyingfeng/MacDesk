@@ -14,6 +14,8 @@ $checks = @(
     @('/check-dock-runtime', 'runtime.txt'),
     @('/check-dock-watchdog', 'watchdog.txt'),
     @('/check-dock-recovery', 'recovery.txt'),
+    @('/check-dock-worker', 'worker.txt'),
+    @('/check-window-chooser', 'chooser.txt'),
     @('/check-dock-presentation', 'presentation.txt'),
     @('/check-dock-pins', 'pins.txt'),
     @('/check-dock-hover', 'hover.txt'),

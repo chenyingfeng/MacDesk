@@ -62,7 +62,7 @@ internal sealed partial class MacBottomDock : Window
     readonly bool previewMode;
     readonly DockPinStore pins;
     DockLinkLauncher pinWebLauncher;
-    readonly Dictionary<string,int> cycles=new Dictionary<string,int>();
+    DockWindowChooser windowChooser; string chooserKey="";
     readonly Dictionary<string,long> clicks=new Dictionary<string,long>();
     sealed class VisualItem {internal Button Button;internal ScaleTransform Scale;internal TranslateTransform Bounce,Shift;internal Ellipse Dot;internal string Key;internal double Center,Extra;internal bool DotActive;}
     readonly List<VisualItem> visuals=new List<VisualItem>();
@@ -71,6 +71,7 @@ internal sealed partial class MacBottomDock : Window
     bool expanded,ready,fullscreen,closed;long nextRead;
     bool renderingHover,hoverGeometryDirty=true;
     double hoverPointer=Double.NaN,lastHoverFrame=-1;
+    readonly TranslateTransform revealOffset=new TranslateTransform();
     readonly Brush inactiveDot=new SolidColorBrush(Color.FromRgb(84,69,90));
     readonly Brush activeDot=new SolidColorBrush(Color.FromRgb(102,8,116));
     internal bool InputFixture;
@@ -100,7 +101,7 @@ internal sealed partial class MacBottomDock : Window
         };
         Loaded+=delegate {if(!preview){Opacity=0;timer.Start();Tick();}};
         timer.Tick+=delegate {Tick();};
-        Closed+=delegate {closed=true;StopHoverRendering();timer.Stop();iconWorker.Stop();if(pinWebLauncher!=null)pinWebLauncher.Dispose();};
+        Closed+=delegate {closed=true;CloseWindowChooser();StopHoverRendering();timer.Stop();iconWorker.Stop();if(pinWebLauncher!=null)pinWebLauncher.Dispose();};
         MouseMove+=delegate {Magnify(System.Windows.Input.Mouse.GetPosition(row).X);};
         MouseLeave+=delegate {Magnify(Double.NaN);};
     }
@@ -114,7 +115,7 @@ internal sealed partial class MacBottomDock : Window
             BorderBrush=new SolidColorBrush(Color.FromArgb(200,255,255,255)),BorderThickness=new Thickness(1),
             Height=66,VerticalAlignment=VerticalAlignment.Bottom,Margin=new Thickness(10,10,10,12),
             Effect=new System.Windows.Media.Effects.DropShadowEffect {BlurRadius=18,ShadowDepth=3,Opacity=.22,Color=Colors.Black}};
-        surface=new Grid();surface.Children.Add(glass);surface.Children.Add(scroll);Content=surface;
+        surface=new Grid {RenderTransform=revealOffset};surface.Children.Add(glass);surface.Children.Add(scroll);Content=surface;
     }
     internal static Rect Placement(System.Drawing.Rectangle screen,int items,double scale) {
         double width=Math.Min(screen.Width/scale-32,Math.Max(416,(items-1)*60+113));
@@ -159,8 +160,15 @@ internal sealed partial class MacBottomDock : Window
         if(ready&&WindowState!=WindowState.Normal){WindowState=WindowState.Normal;expanded=false;}
         if(ready&&!fullscreen&&expanded&&Opacity==0){expanded=false;nextRead=0;}
     }
-    void Expand(){if(WindowState!=WindowState.Normal)WindowState=WindowState.Normal;if(expanded)return;Position();expanded=true;BeginAnimation(OpacityProperty,new DoubleAnimation(1,TimeSpan.FromMilliseconds(140)));}
-    void Collapse(){if(!expanded&&Opacity==0)return;expanded=false;ResetHover();BeginAnimation(OpacityProperty,null);Opacity=0;
+    void Expand(){if(WindowState!=WindowState.Normal)WindowState=WindowState.Normal;if(expanded)return;Position();expanded=true;
+        BeginAnimation(OpacityProperty,null);revealOffset.BeginAnimation(TranslateTransform.YProperty,null);
+        if(!SystemParameters.ClientAreaAnimation){Opacity=1;revealOffset.Y=0;return;}
+        var duration=TimeSpan.FromMilliseconds(180);var easing=new CubicEase {EasingMode=EasingMode.EaseOut};
+        BeginAnimation(OpacityProperty,new DoubleAnimation(0,1,duration){EasingFunction=easing});
+        revealOffset.BeginAnimation(TranslateTransform.YProperty,new DoubleAnimation(8,0,duration){EasingFunction=easing});
+    }
+    void Collapse(){CloseWindowChooser();if(!expanded&&Opacity==0)return;expanded=false;ResetHover();BeginAnimation(OpacityProperty,null);Opacity=0;
+        revealOffset.BeginAnimation(TranslateTransform.YProperty,null);revealOffset.Y=0;
         DockNative.SetWindowPos(new WindowInteropHelper(this).EnsureHandle(),IntPtr.Zero,Forms.SystemInformation.VirtualScreen.Right+100,Forms.SystemInformation.VirtualScreen.Bottom+100,0,0,0x0015);}
     void RenderApps() {
         ResetHover();hoverGeometryDirty=true;
@@ -183,7 +191,7 @@ internal sealed partial class MacBottomDock : Window
             AddRunningApp(pair.Key,label,targets);
         }
         row.Children.Add(new Border {Width=1,Height=36,Background=new SolidColorBrush(Color.FromArgb(75,75,78,84)),Margin=new Thickness(7,27,7,10)});
-        AddButton("MacDesk 快捷中心",CenterIcon(),"M",false,false,delegate{showCenter();});
+        AddButton("MacDesk 快捷中心",CenterIcon(),"M",false,false,delegate{CloseWindowChooser();showCenter();});
         AddButton("添加应用、文件夹或网页",null,"+",false,false,ShowPinPicker);
         AddButton("任务栏 / 托盘 · 点一次显示，再点一次隐藏",null,"•••",false,false,delegate{trayToggle();Collapse();});
         AddButton("下载",AppIcon("shell:Downloads"),"↓",false,false,delegate{OpenShell("shell:Downloads");},"shell:Downloads");
@@ -230,7 +238,7 @@ internal sealed partial class MacBottomDock : Window
         var button=AddButton(label,AppIcon(iconPath,first),"",true,targets.Any(a=>a.Active),delegate{ActivateRunningApp(key);},iconPath);
         visuals[visuals.Count-1].Key=key;
         var menu=new ContextMenu();menu.Opened+=delegate{
-            menuOpen=true;Magnify(Double.NaN);menu.Items.Clear();menu.Items.Add(new MenuItem {Header=label,IsEnabled=false});
+            CloseWindowChooser();menuOpen=true;Magnify(Double.NaN);menu.Items.Clear();menu.Items.Add(new MenuItem {Header=label,IsEnabled=false});
             var current=apps.Where(a=>a.Key==key).OrderBy(a=>a.Handle).ToArray();
             for(int i=0;i<current.Length;i++) {var target=current[i];string title=NativeDockIcons.WindowTitle(target.Handle,target.Pid);
                 var item=new MenuItem {Header=(String.IsNullOrWhiteSpace(title)?"窗口 "+(i+1):title.Replace("_","__")),IsCheckable=true,IsChecked=target.Active};
@@ -349,10 +357,12 @@ internal sealed partial class MacBottomDock : Window
     void Activate(string key,MacDockApp[] targets) {
         if(targets.Length==0)return;
         long now=DateTime.UtcNow.Ticks,previous;if(clicks.TryGetValue(key,out previous)&&now-previous<400*TimeSpan.TicksPerMillisecond)return;
-        clicks[key]=now;int index;cycles.TryGetValue(key,out index);index%=targets.Length;var target=targets[index];cycles[key]=index+1;
-        Request(target);
+        clicks[key]=now;
+        if(targets.Length>1){ShowWindowChooser(key,targets);return;}
+        CloseWindowChooser();Request(targets[0]);
     }
     void Request(MacDockApp target) {
+        CloseWindowChooser();
         Interlocked.Increment(ref activationGeneration);WriteActivation(target);
     }
     void RequestRecovered(MacDockApp target,long expectedGeneration) {
